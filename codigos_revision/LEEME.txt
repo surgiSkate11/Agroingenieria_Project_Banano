@@ -1,0 +1,76 @@
+﻿CÓDIGOS DE LA REVISIÓN — agriengineering-4601275
+Responsable de ejecución: Milca Toledo-Moncerrate
+=====================================================================
+
+QUÉ CAMBIÓ RESPECTO A LOS ARCHIVOS ENVIADOS
+- CNN.py  -> 02_eficiencia_cnn.py   (mismo protocolo de latencia; se añaden parámetros, tamaño FP32,
+                                      tamaño del archivo, imágenes/s, baselines nuevos, versiones,
+                                      nvidia-smi y SHA-256 de cada modelo)
+- yolo.py -> 03_eficiencia_yolo.py  (ídem para YOLO; se añaden YOLOv5n, YOLOv9t y RT-DETR-L)
+- Las rutas de ambos scripts se pasaron a config.py (un solo lugar para editarlas).
+- tabla_resumen_cnn.csv y tabla_resumen_yolo.csv se regeneran con las mismas columnas
+  y columnas nuevas al final (no se pierde el formato original).
+- NUEVOS: predicciones por imagen, métricas y estadística (Wilson, McNemar + Holm, TOST),
+  análisis de Overripe, estadística pareada de detectores, baselines nuevos, validación
+  cruzada, validación externa, auditoría de particiones y Grad-CAM.
+- IMPORTANTE: los 6 modelos del manuscrito NO se reentrenan; se usan los pesos finales ya
+  existentes (las mismas rutas de CNN.py y yolo.py). Solo se entrenan los baselines nuevos.
+
+ANTES DE EMPEZAR
+1. Copiar todos los .py en la carpeta donde estaba CNN.py (la que contiene Keras/ y bananaDatasetNoYolo/).
+2. Revisar config.py: PROJECT_ROOT, rutas de modelos y MODEL_CLASS_ORDER.
+3. data.yaml del dataset YOLO debe tener la línea  test: test/images
+4. pip install timm scikit-learn scipy imagehash matplotlib pyyaml tensorflow-cpu  (además de keras, torch y ultralytics ya instalados;
+   tensorflow-cpu solo lo usa el script 08a para leer las carpetas de imágenes)
+5. python estadistica.py   -> debe imprimir 98.40 / 96.98 / 99.16, 0.000729, 0.001544 y TOST +0.178
+
+VERSIÓN 2 (correcciones respecto al zip anterior)
+ - 05: la familia de McNemar no incluía los 3 pares originales (nombres en minúscula); corregido. Se añade T_D0 con la familia original
+   de 3 comparaciones (reproduce Holm 0.002186 / 0.003088 / 1). El TOST usa la diferencia Xception - ResNet50V2 (+0.178).
+ - 01: el archivo con 'phash<=5' en el nombre era inválido en Windows; ahora 'phash_le5'. Acepta carpeta valid / val / validation.
+ - 07: Ultralytics numera category_id desde 1; ahora se detecta y corrige automáticamente.
+ - 06: workers=0 en la validación (evita el error de multiprocesamiento en Windows).
+ - 09: guardia __main__ (obligatoria en Windows para entrenar con Ultralytics).
+ - 08a/08b/01: rutas de partición robustas; 08b mantiene la base congelada también en BatchNorm durante la fase 1.
+ - 10/11: nombres de clase de detección sin importar mayúsculas/espacios; 11 localiza las carpetas de madurez en cualquier nivel
+   y excluye cualquier carpeta o archivo con 'aug'.
+ - Las tablas T_* y S_* se guardan con BOM UTF-8 para abrirse bien en Excel.
+
+ORDEN DE EJECUCIÓN                                         RESPONDE A        VA EN EL MANUSCRITO
+ 04_predicciones_cnn.py            predicciones por imagen   R1-2, R1-4        base de todo; resuelve 536 vs 537
+ 05_metricas_estadistica_cnn.py    T_A..T_F, confusión       R1-2, R1-4        Tablas 5 y 8, Sección 4.4, Discusión
+ 06_predicciones_metricas_yolo.py  detecciones por imagen    R1-2              Tabla 6
+ 07_estadistica_yolo_pareada.py    T_G, T_I (ΔmAP pareado)   R1-2, R1-4        Tabla 9, Sección 4.4
+ 02_eficiencia_cnn.py              latencia CNN              R1-2, R2-10       Tablas 7 y 11
+ 03_eficiencia_yolo.py             latencia detectores       R1-2, R2-10       Tablas 7 y 11
+ 13_tabla_eficiencia_articulo.py   T_H (une 02 y 03)         R2-10             Tabla 7
+ 01_integridad_particiones.py cls  / det                     R1-1              Sección 3.3, material suplementario
+ 08a_entrenar_baselines_cnn_keras.py --model mobilenetv3large | mobilenetv3small | efficientnetb0
+ 08b_entrenar_baselines_timm.py      --model deit_tiny_patch16_224 | mobilevit_s
+ 09_entrenar_baselines_yolo.py       --model yolov5n | yolov9t | rtdetr-l
+     -> después de entrenar, volver a ejecutar 02, 03, 04, 05, 06, 07 y 13 (incluyen los nuevos automáticamente)
+ 10_validacion_cruzada_fuentes.py  T_J                       R1-3, R2-13       nueva Sección 4.6
+ 11_validacion_externa.py          T_K0, T_K, T_K2           R1-3, R2-13       Secciones 3.9 y 4.6
+     (dataset externo: BananaImageBD, Mendeley doi 10.17632/ptfscwtnyz.2, CC BY 4.0;
+      solo las 820 imágenes ORIGINALES del subconjunto de madurez; ruta EXT_DIR en config.py)
+ 12_gradcam_micronet.py            figura (opcional)         R1-4              material suplementario
+
+MÓDULOS DE APOYO (no se ejecutan solos)
+ config.py          rutas, protocolo, clases y registro de modelos
+ estadistica.py     Wilson (Ec. 6), McNemar exacto (Ec. 7), Holm (Ec. 8), TOST
+ cargar_modelos.py  carga uniforme de clasificadores y detectores
+
+SALIDAS (carpeta resultados_revision/)
+ predicciones/  cls_<Modelo>.csv, det_<Modelo>.json, cross_*.csv, external_*.csv
+ tablas/        todas las tablas T_* (encabezados en inglés, listas para el artículo)
+ figuras/       matrices de confusión y Grad-CAM a 600 dpi
+ entorno/       versiones_*.json, nvidia_smi.txt, información de entrenamiento
+Enviar a Jhonny la carpeta resultados_revision/ completa (comprimida).
+
+NUEVOS (después de la entrega de los pasos 1 a 6)
+ 14_test_limpio.py            T_N_* ; figuras/near_duplicates_sample_*.png ; revision_visual_pares_*.csv
+                              Resultados sin las imágenes de prueba marcadas como casi-duplicados (pHash <= 5)
+                              y muestra visual para confirmar si son la misma fruta. Requiere 01, 04 y 06.
+ 15_verificar_pesos_micronet.py  tablas/control_pesos_micronet.csv
+                              Evalúa todos los archivos .keras de MicroNet_Banana para saber cuál produjo
+                              los 536 aciertos publicados. No modifica nada.

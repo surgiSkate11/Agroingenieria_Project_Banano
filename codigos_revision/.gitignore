@@ -1,0 +1,13 @@
+   *.keras
+   *.pt
+   *.pth
+   *.onnx
+   *.h5
+   *.zip
+   dataset*/
+   BananaImageBD/
+   __pycache__/
+   ~WRL*.tmp
+   AnyDesk.exe
+   .condarc
+   .env
